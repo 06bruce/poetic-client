@@ -1,0 +1,15 @@
+# .dockerignore - Exclude files from Docker build
+
+node_modules
+npm-debug.log
+.git
+.gitignore
+.dockerignore
+.vscode
+# .env
+.env.local
+.DS_Store
+dist
+build
+coverage
+*.md

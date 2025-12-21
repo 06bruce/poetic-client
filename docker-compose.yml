@@ -1,0 +1,25 @@
+services:
+  poem-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3003:3003"
+    container_name: poem-studio
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    networks:
+      - poem-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3003"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+networks:
+  poem-network:
+    driver: bridge
+
+volumes:
+  poem-data:
