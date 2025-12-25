@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { toast } from '../contexts/ToastContext'
 import PoemCard from './PoemCard'
 
-export default function PoemGenerator({ onSave, showAuthForm }) {
+export default function PoemGenerator({ onSave, showAuthForm, setGlobalMood }) {
   const { user } = useAuth()
   const [mode, setMode] = useState('generate') // 'generate' or 'create'
   const [category, setCategory] = useState('underrated')
@@ -44,6 +44,14 @@ export default function PoemGenerator({ onSave, showAuthForm }) {
     getPoem(category)
   }, [category, getPoem])
 
+  // Sync mood with global app
+  useEffect(() => {
+    const activeMood = mode === 'create' ? formData.mood : current?.mood;
+    if (activeMood && typeof setGlobalMood === 'function') {
+      setGlobalMood(activeMood)
+    }
+  }, [mode, formData.mood, current?.mood, setGlobalMood])
+
   const handleSave = useCallback(async () => {
     if (!user) {
       showAuthForm()
@@ -59,13 +67,13 @@ export default function PoemGenerator({ onSave, showAuthForm }) {
       toast.error('Generate a poem first')
       return
     }
-    
+
     setSaving(true)
     setError(null)
     try {
       const poemData = mode === 'create' ? formData : {
         title: current.title,
-        content: Array.isArray(current.lines) 
+        content: Array.isArray(current.lines)
           ? current.lines.join('\n')
           : current.content || '',
         theme: current.theme || 'general',
@@ -80,16 +88,16 @@ export default function PoemGenerator({ onSave, showAuthForm }) {
         poemData.mood,
         poemData.source || 'user'
       )
-      
+
       onSave(result.data || poemData)
-      
+
       if (mode === 'create') {
         setFormData({ title: '', content: '', theme: 'general', mood: 'neutral' })
       } else {
         setCurrent(null)
         setLiked(false)
       }
-      
+
       toast.success('Poem saved successfully!')
       setError(null)
     } catch (err) {
@@ -117,11 +125,16 @@ export default function PoemGenerator({ onSave, showAuthForm }) {
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between mb-4">
         <div className="flex gap-2">
           <button
-            onClick={() => { setMode('generate'); setError(null); }}
+            onClick={() => {
+              if (mode === 'generate') handleGenerate();
+              else setMode('generate');
+              setError(null);
+            }}
+            disabled={loading && mode === 'generate'}
             className={`px-4 py-2 rounded-md flex items-center gap-2 transition ${mode === 'generate' ? 'bg-indigo-600' : 'bg-gray-700 hover:bg-gray-600'}`}
           >
-            <FiPlay size={16} />
-            Generate
+            {loading ? <FiLoader className="animate-spin" /> : <FiPlay size={16} />}
+            {mode === 'generate' ? 'Generate New' : 'Generate'}
           </button>
           <button
             onClick={() => { setMode('create'); setError(null); }}
@@ -132,31 +145,6 @@ export default function PoemGenerator({ onSave, showAuthForm }) {
           </button>
         </div>
 
-        {mode === 'generate' && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => setCategory('famous')}
-              className={`px-3 py-1 rounded-md ${category === 'famous' ? 'bg-gray-700' : 'bg-gray-800'} transition text-sm`}
-            >
-              Famous
-            </button>
-            <button
-              onClick={() => setCategory('underrated')}
-              className={`px-3 py-1 rounded-md ${category === 'underrated' ? 'bg-gray-700' : 'bg-gray-800'} transition text-sm`}
-            >
-              Underrated
-            </button>
-          </div>
-        )}
-
-        <button 
-          onClick={handleSave} 
-          disabled={mode === 'generate' ? (!current || saving) : (!formData.title.trim() || !formData.content.trim() || saving) || !user}
-          className={`px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-500 flex items-center gap-2 transition ${(mode === 'generate' ? !current : !formData.title.trim() || !formData.content.trim()) || saving ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          {saving ? <FiLoader className="animate-spin" /> : <FiSave />}
-          {saving ? 'Saving...' : 'Save'}
-        </button>
       </div>
 
       {!user && (
@@ -175,20 +163,25 @@ export default function PoemGenerator({ onSave, showAuthForm }) {
 
       {mode === 'generate' ? (
         <>
-          <div className="mb-4 flex gap-2">
+          <div className="flex gap-2 mb-4 justify-center">
             <button
-              onClick={handleGenerate}
-              disabled={loading}
-              className={`px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-500 flex items-center gap-2 transition ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={() => { setCategory('famous'); handleGenerate(); }}
+              className={`px-4 py-1.5 rounded-full border transition-all text-xs font-semibold ${category === 'famous' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600'}`}
             >
-              {loading ? <FiLoader className="animate-spin" /> : <FiPlay />}
-              {loading ? 'Fetching...' : 'Generate Poem'}
+              Famous
+            </button>
+            <button
+              onClick={() => { setCategory('underrated'); handleGenerate(); }}
+              className={`px-4 py-1.5 rounded-full border transition-all text-xs font-semibold ${category === 'underrated' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600'}`}
+            >
+              Underrated
             </button>
           </div>
 
           {current ? (
             <PoemCard
               poem={current}
+              isNew={true}
               extraActions={
                 <div className="flex gap-2 mt-3">
                   <button onClick={handleLike} className={`p-2 rounded-md transition ${liked ? 'bg-pink-600' : 'bg-gray-800 hover:bg-gray-700'}`} title="Like">
@@ -206,6 +199,14 @@ export default function PoemGenerator({ onSave, showAuthForm }) {
                   >
                     <FiCopy />
                   </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving || !user}
+                    className="px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-500 flex items-center gap-2 transition disabled:opacity-50"
+                  >
+                    {saving ? <FiLoader className="animate-spin" /> : <FiSave />}
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
                 </div>
               }
             />
@@ -222,7 +223,7 @@ export default function PoemGenerator({ onSave, showAuthForm }) {
             <input
               type="text"
               value={formData.title}
-              onChange={(e) => setFormData({...formData, title: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               placeholder="Enter poem title"
               className="w-full px-4 py-2 rounded-md bg-gray-800 text-white border border-gray-700 focus:border-indigo-500 focus:outline-none"
             />
@@ -232,7 +233,7 @@ export default function PoemGenerator({ onSave, showAuthForm }) {
             <label className="block text-sm font-medium text-gray-300 mb-2">Content</label>
             <textarea
               value={formData.content}
-              onChange={(e) => setFormData({...formData, content: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
               placeholder="Write your poem here..."
               rows="8"
               className="w-full px-4 py-2 rounded-md bg-gray-800 text-white border border-gray-700 focus:border-indigo-500 focus:outline-none resize-none"
@@ -244,7 +245,7 @@ export default function PoemGenerator({ onSave, showAuthForm }) {
               <label className="block text-sm font-medium text-gray-300 mb-2">Theme</label>
               <select
                 value={formData.theme}
-                onChange={(e) => setFormData({...formData, theme: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, theme: e.target.value })}
                 className="w-full px-4 py-2 rounded-md bg-gray-800 text-white border border-gray-700 focus:border-indigo-500 focus:outline-none"
               >
                 <option value="general">General</option>
@@ -260,7 +261,7 @@ export default function PoemGenerator({ onSave, showAuthForm }) {
               <label className="block text-sm font-medium text-gray-300 mb-2">Mood</label>
               <select
                 value={formData.mood}
-                onChange={(e) => setFormData({...formData, mood: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, mood: e.target.value })}
                 className="w-full px-4 py-2 rounded-md bg-gray-800 text-white border border-gray-700 focus:border-indigo-500 focus:outline-none"
               >
                 <option value="neutral">Neutral</option>

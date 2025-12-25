@@ -2,6 +2,8 @@ import React, { useMemo } from 'react'
 import clsx from 'clsx'
 import { useNavigate } from 'react-router-dom'
 import { FiHeart, FiCopy } from 'react-icons/fi'
+import { useMoodTheme } from '../hooks/useMoodTheme'
+import Typewriter from './Typewriter'
 
 function hashStringToNum(s) {
   let h = 0
@@ -32,15 +34,26 @@ function isEditableWindow(createdAt) {
   return diffInMinutes <= 10
 }
 
-export default function PoemCard({ poem, extraActions, onEdit, onDelete, currentUserId, isReadOnly = false, onLike, onUnlike, currentUserLiked = false }) {
+export default function PoemCard({ poem, extraActions, onEdit, onDelete, currentUserId, isReadOnly = false, onLike, onUnlike, currentUserLiked = false, isNew = false }) {
   const navigate = useNavigate()
-  const bg = useMemo(() => ({ background: `linear-gradient(135deg, ${randomDimColor(poem._id || poem.id)}, rgba(255,255,255,0.02))` }), [poem._id, poem.id])
-  
+  const moodTheme = useMoodTheme(poem.mood)
+
+  const bg = useMemo(() => {
+    if (moodTheme.bg) {
+      return {
+        backgroundImage: `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url(${moodTheme.bg})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center'
+      }
+    }
+    return { background: `linear-gradient(135deg, ${randomDimColor(poem._id || poem.id)}, rgba(255,255,255,0.02))` }
+  }, [poem._id, poem.id, moodTheme.bg])
+
   const isAuthor = currentUserId && poem.author && (
     currentUserId === poem.author._id || currentUserId === poem.author
   )
   const canEdit = isAuthor && isEditableWindow(poem.createdAt) && !isReadOnly
-  
+
   const poemContent = poem.content || (Array.isArray(poem.lines) ? poem.lines.join('\n') : '')
   const authorName = poem.authorName || poem.author?.username || 'Anonymous'
   const likeCount = poem.likes?.length || 0
@@ -48,9 +61,22 @@ export default function PoemCard({ poem, extraActions, onEdit, onDelete, current
   return (
     <article
       id={`poem-card-${poem._id || poem.id}`}
-      className={clsx('p-4 xs:p-5 md:p-6 rounded-2xl glass mb-4 transition-transform transform hover:-translate-y-1 hover:scale-[1.01]')}
-      style={{ ...bg }}
+      className={clsx('relative p-4 xs:p-5 md:p-6 rounded-2xl glass mb-4 transition-transform transform hover:-translate-y-1 hover:scale-[1.01] overflow-hidden')}
     >
+      {moodTheme.bg && (
+        <div
+          className="absolute inset-0 -z-10"
+          style={{
+            backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.7)), url(${moodTheme.bg})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            filter: 'brightness(0.6)'
+          }}
+        />
+      )}
+      {!moodTheme.bg && <div className="absolute inset-0 -z-10" style={bg} />}
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 mb-3">
         <div className="w-full">
           <h3 className="font-medium text-base xs:text-lg">{poem.title}</h3>
@@ -62,7 +88,11 @@ export default function PoemCard({ poem, extraActions, onEdit, onDelete, current
               @{authorName}
             </button>
             <span className="hidden xs:inline">•</span>
-            <span>{poem.mood || 'neutral'} • {poem.theme || 'general'}</span>
+            <span className={clsx("font-semibold uppercase tracking-wider text-[10px]", moodTheme.colors.primary)}>
+              {poem.mood || 'neutral'}
+            </span>
+            <span className="hidden xs:inline">•</span>
+            <span>{poem.theme || 'general'}</span>
             {poem.createdAt && (
               <>
                 <span className="hidden xs:inline">•</span>
@@ -75,18 +105,31 @@ export default function PoemCard({ poem, extraActions, onEdit, onDelete, current
         </div>
       </div>
 
-      <pre className="whitespace-pre-wrap text-base xs:text-lg mt-3 leading-relaxed font-serif break-words">{poemContent}</pre>
+      <div className="relative mt-3 min-h-[100px]">
+        {isNew ? (
+          <div className="text-base xs:text-lg leading-relaxed font-serif break-words">
+            <Typewriter
+              lines={poemContent.split('\n')}
+              lineDelay={300}
+              charDelay={20}
+            />
+          </div>
+        ) : (
+          <pre className="whitespace-pre-wrap text-base xs:text-lg leading-relaxed font-serif break-words">
+            {poemContent}
+          </pre>
+        )}
+      </div>
 
       <div className="mt-4 flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2 xs:gap-0">
         <div className="flex items-center gap-3 xs:gap-4">
           {!isAuthor && (onLike || onUnlike) && (
             <button
               onClick={() => currentUserLiked ? onUnlike?.(poem._id) : onLike?.(poem._id)}
-              className={`flex items-center gap-1 px-3 py-1 rounded-lg transition ${
-                currentUserLiked
-                  ? 'bg-pink-600/30 border border-pink-500/50 text-pink-300'
-                  : 'bg-gray-700/30 border border-gray-600/50 text-gray-400 hover:text-pink-300'
-              }`}
+              className={`flex items-center gap-1 px-3 py-1 rounded-lg transition ${currentUserLiked
+                ? 'bg-pink-600/30 border border-pink-500/50 text-pink-300'
+                : 'bg-gray-700/30 border border-gray-600/50 text-gray-400 hover:text-pink-300'
+                }`}
             >
               <FiHeart size={16} fill={currentUserLiked ? 'currentColor' : 'none'} />
               {likeCount}

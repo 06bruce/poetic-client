@@ -55,11 +55,15 @@ export default function UserProfile() {
     try {
       if (isFollowing) {
         await userAPI.unfollow(user.username)
+        toast.success(`Unfollowed @${user.username}`)
       } else {
         await userAPI.follow(user.username)
+        toast.success(`Following @${user.username}`)
       }
       fetchProfile()
-    } catch (e) {}
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to update follow status')
+    }
     setFollowLoading(false)
   }
 

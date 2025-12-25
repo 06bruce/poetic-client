@@ -14,18 +14,21 @@ const PoemList = React.forwardRef(({ refreshTrigger }, ref) => {
   const [sharingId, setSharingId] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState({ title: '', content: '' })
+  const [feedType, setFeedType] = useState('explore') // 'explore' or 'following'
   const listRef = useRef(null)
 
-  // Fetch poems on mount and when user changes or refreshTrigger changes
+  // Fetch poems on mount and when user changes or refreshTrigger/feedType changes
   useEffect(() => {
     fetchPoems()
-  }, [user, refreshTrigger])
+  }, [user, refreshTrigger, feedType])
 
   const fetchPoems = async () => {
     setLoading(true)
     setError(null)
     try {
-      const response = await poemAPI.getAll()
+      const response = feedType === 'following' && user
+        ? await poemAPI.getFollowingFeed()
+        : await poemAPI.getAll()
       setPoems(response.data)
     } catch (err) {
       setError('Failed to load poems')
@@ -62,7 +65,7 @@ const PoemList = React.forwardRef(({ refreshTrigger }, ref) => {
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this poem?')) return
-    
+
     try {
       await poemAPI.delete(id)
       setPoems(poems.filter(p => p._id !== id))
@@ -82,7 +85,7 @@ const PoemList = React.forwardRef(({ refreshTrigger }, ref) => {
   const handleEditSave = async (id) => {
     try {
       await poemAPI.update(id, editForm.title, editForm.content)
-      setPoems(poems.map(p => 
+      setPoems(poems.map(p =>
         p._id === id ? { ...p, ...editForm } : p
       ))
       setEditingId(null)
@@ -192,92 +195,132 @@ const PoemList = React.forwardRef(({ refreshTrigger }, ref) => {
     )
   }
 
-  if (!poems || poems.length === 0) {
-    return (
-      <section className="mt-8">
-        <div className="p-8 rounded-2xl glass text-center flex flex-col items-center justify-center gap-2">
-          <h4 className="text-lg font-medium mb-2">No poems yet</h4>
-          <p className="text-gray-400 mb-2">Generate and save poems, or check back later to see what others have created.</p>
-          <span className="text-4xl">📝</span>
-        </div>
-      </section>
-    )
-  }
-
   return (
     <section className="mt-6 px-1 xs:px-2 sm:px-0">
-      <h2 className="text-xl xs:text-2xl font-bold mb-4">Poem Collection</h2>
-      <div ref={listRef} className="space-y-4">
-        {poems.map((poem) => (
-          <div key={poem._id}>
-            {editingId === poem._id ? (
-              <div className="p-6 rounded-2xl glass mb-4 bg-gray-800/50">
-                <h3 className="font-bold mb-4">Edit Poem</h3>
-                <div className="space-y-3 mb-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Title</label>
-                    <input
-                      type="text"
-                      value={editForm.title}
-                      onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-700 focus:border-blue-500 outline-none"
-                    />
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+        <h2 className="text-xl xs:text-2xl font-bold">Poem Collection</h2>
+        <div className="flex bg-gray-800/50 p-1 rounded-lg border border-gray-700">
+          <button
+            onClick={() => setFeedType('explore')}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${feedType === 'explore' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:text-gray-200'}`}
+          >
+            Explore
+          </button>
+          <button
+            onClick={() => {
+              if (!user) {
+                toast.error('Sign in to follow poets')
+                return
+              }
+              setFeedType('following')
+            }}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${feedType === 'following' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:text-gray-200'}`}
+          >
+            Following
+          </button>
+        </div>
+      </div>
+
+      {loading && poems.length === 0 ? (
+        <div className="p-12 rounded-2xl glass text-center flex flex-col items-center justify-center gap-4 border border-gray-700/50">
+          <FiLoader className="animate-spin text-3xl text-indigo-500" />
+          <p className="text-gray-400 animate-pulse">Curating your poetic experience...</p>
+        </div>
+      ) : feedType === 'following' && poems.length === 0 ? (
+        <div className="p-12 rounded-2xl glass text-center flex flex-col items-center justify-center gap-4 border border-gray-700/50 bg-indigo-900/10">
+          <div className="w-16 h-16 rounded-full bg-indigo-500/20 flex items-center justify-center mb-2">
+            <FiUserPlus className="text-3xl text-indigo-400" />
+          </div>
+          <h4 className="text-xl font-bold text-white">Your Feed is Quiet</h4>
+          <p className="text-gray-400 max-w-md mx-auto">
+            You haven't followed any poets yet. Switch to <strong>Explore</strong> to discover amazing work and start building your circle!
+          </p>
+          <button
+            onClick={() => setFeedType('explore')}
+            className="mt-2 px-6 py-2 rounded-full bg-indigo-600 hover:bg-indigo-500 transition font-semibold"
+          >
+            Start Exploring
+          </button>
+        </div>
+      ) : !poems || poems.length === 0 ? (
+        <div className="p-12 rounded-2xl glass text-center flex flex-col items-center justify-center gap-4 border border-gray-700/50">
+          <span className="text-5xl mb-2">🐚</span>
+          <h4 className="text-xl font-bold text-white">The collection is currently empty</h4>
+          <p className="text-gray-400">Be the first to fill this space with your poetry!</p>
+        </div>
+      ) : (
+        <div ref={listRef} className="space-y-4">
+          {poems.map((poem) => (
+            <div key={poem._id}>
+              {editingId === poem._id ? (
+                <div className="p-6 rounded-2xl glass mb-4 bg-gray-800/50">
+                  <h3 className="font-bold mb-4">Edit Poem</h3>
+                  <div className="space-y-3 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Title</label>
+                      <input
+                        type="text"
+                        value={editForm.title}
+                        onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-700 focus:border-blue-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Content</label>
+                      <textarea
+                        value={editForm.content}
+                        onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                        rows="8"
+                        className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-700 focus:border-blue-500 outline-none font-mono text-sm"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Content</label>
-                    <textarea
-                      value={editForm.content}
-                      onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
-                      rows="8"
-                      className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-700 focus:border-blue-500 outline-none font-mono text-sm"
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEditSave(poem._id)}
-                    className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 font-medium"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={handleEditCancel}
-                    className="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 font-medium"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <PoemCard
-                poem={poem}
-                currentUserId={user?.id}
-                onEdit={handleEditStart}
-                onDelete={handleDelete}
-                onLike={handleLike}
-                onUnlike={handleUnlike}
-                currentUserLiked={poem.likes?.some(like => like.userId === user?.id) || false}
-                extraActions={
-                  <div className="flex gap-2 mt-3">
+                  <div className="flex gap-2">
                     <button
-                      onClick={() => handleShare(poem)}
-                      disabled={sharingId === poem._id}
-                      className="p-2 rounded-md bg-gray-800 hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2"
-                      title="Share"
+                      onClick={() => handleEditSave(poem._id)}
+                      className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 font-medium"
                     >
-                      {sharingId === poem._id ? (
-                        <FiLoader className="animate-spin" />
-                      ) : (
-                        <FiShare2 />
-                      )}
+                      Save
+                    </button>
+                    <button
+                      onClick={handleEditCancel}
+                      className="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 font-medium"
+                    >
+                      Cancel
                     </button>
                   </div>
-                }
-              />
-            )}
-          </div>
-        ))}
-      </div>
+                </div>
+              ) : (
+                <PoemCard
+                  poem={poem}
+                  currentUserId={user?.id}
+                  onEdit={handleEditStart}
+                  onDelete={handleDelete}
+                  onLike={handleLike}
+                  onUnlike={handleUnlike}
+                  currentUserLiked={poem.likes?.some(like => like.userId === user?.id) || false}
+                  extraActions={
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={() => handleShare(poem)}
+                        disabled={sharingId === poem._id}
+                        className="p-2 rounded-md bg-gray-800 hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2"
+                        title="Share"
+                      >
+                        {sharingId === poem._id ? (
+                          <FiLoader className="animate-spin" />
+                        ) : (
+                          <FiShare2 />
+                        )}
+                      </button>
+                    </div>
+                  }
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 });

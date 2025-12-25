@@ -82,10 +82,10 @@ export default function Header({ onToggleSnow, showSnow, onAuthClick, onNotifica
           </button>
         )}
         <button
-          aria-label="toggle snowfall"
+          aria-label="toggle weather"
           onClick={onToggleSnow}
           className="p-2 rounded-md bg-gray-800 hover:bg-gray-700 transition"
-          title="Toggle snowfall"
+          title="Toggle weather effects"
         >
           {showSnow ? <FiMoon /> : <FiSun />}
         </button>

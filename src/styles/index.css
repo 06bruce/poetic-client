@@ -20,22 +20,54 @@ body {
   backdrop-filter: blur(6px) saturate(120%);
 }
 
-/* Snowfall */
-.snowflake {
+/* Weather Animations */
+.weather-particle {
   position: absolute;
-  top: -10px;
-  width: 6px;
-  height: 6px;
-  background: rgba(255,255,255,0.7);
-  border-radius: 50%;
-  opacity: 0.85;
+  top: -20px;
   pointer-events: none;
-  animation-name: fall;
-  animation-timing-function: linear;
   animation-iteration-count: infinite;
+  animation-timing-function: linear;
 }
 
-@keyframes fall {
-  0% { transform: translateY(-10vh) translateX(0) }
-  100% { transform: translateY(120vh) translateX(40px) }
+.floating {
+  animation-name: fall-sway;
+}
+
+.rain-drop {
+  animation-name: rain-fall;
+  animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+@keyframes fall-sway {
+  0% { transform: translateY(-10vh) rotate(0deg) translateX(0); }
+  25% { transform: translateY(20vh) rotate(90deg) translateX(15px); }
+  50% { transform: translateY(50vh) rotate(180deg) translateX(-15px); }
+  75% { transform: translateY(80vh) rotate(270deg) translateX(15px); }
+  100% { transform: translateY(110vh) rotate(360deg) translateX(0); }
+}
+
+@keyframes rain-fall {
+  0% { transform: translateY(-10vh); }
+  100% { transform: translateY(110vh); }
+}
+
+/* Typewriter Cursor */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-pulse {
+  animation: blink 1s step-end infinite;
+}
+
+/* Mood Overlay */
+.mood-overlay {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.15;
+  mix-blend-mode: soft-light;
+  z-index: -1;
 }
