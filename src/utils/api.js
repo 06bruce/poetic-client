@@ -22,6 +22,26 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Handle authentication errors globally
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      const authError = error.response.data?.error || '';
+      if (authError.toLowerCase().includes('token') || authError.toLowerCase().includes('expired')) {
+        console.warn('Auth token invalid or expired. Cleaning up...');
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        // Trigger storage event for the current window to update context
+        window.dispatchEvent(new Event('storage'));
+        // Optionally reload to clean up other states
+        // window.location.reload();
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Authentication
 export const authAPI = {
   signup: (email, username, password) =>

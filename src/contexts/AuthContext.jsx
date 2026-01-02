@@ -8,14 +8,24 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Check if user is logged in on mount
+  // Check if user is logged in on mount and handle state synchronization
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    const savedUser = localStorage.getItem('user');
-    if (token && savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
+    const checkAuth = () => {
+      const token = localStorage.getItem('authToken');
+      const savedUser = localStorage.getItem('user');
+      if (token && savedUser) {
+        setUser(JSON.parse(savedUser));
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    };
+
+    checkAuth();
+
+    // Listen for storage changes (e.g., from api interceptor)
+    window.addEventListener('storage', checkAuth);
+    return () => window.removeEventListener('storage', checkAuth);
   }, []);
 
   const signup = async (email, username, password) => {
@@ -23,7 +33,7 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       const response = await authAPI.signup(email, username, password);
       const { token, user } = response.data;
-      
+
       localStorage.setItem('authToken', token);
       localStorage.setItem('user', JSON.stringify(user));
       setUser(user);
@@ -40,7 +50,7 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       const response = await authAPI.signin(email, password);
       const { token, user } = response.data;
-      
+
       localStorage.setItem('authToken', token);
       localStorage.setItem('user', JSON.stringify(user));
       setUser(user);

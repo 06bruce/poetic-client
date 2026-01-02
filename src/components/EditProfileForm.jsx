@@ -34,7 +34,12 @@ export default function EditProfileForm({ user, onUpdate }) {
       toast.success('Profile updated!')
       onUpdate && onUpdate(res.data)
     } catch (err) {
-      setError(err.response?.data?.error || 'Update failed')
+      const errorMessage = err.response?.data?.error || 'Update failed'
+      setError(errorMessage)
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        toast.error('Session expired. Please sign in again.')
+        // Optionally force logout here if the interceptor hasn't handled it
+      }
     } finally {
       setLoading(false)
     }
